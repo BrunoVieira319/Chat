@@ -1,4 +1,4 @@
-package br.com.chat;
+package br.com.chat.domain;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -11,25 +11,29 @@ public class User implements Runnable {
 	private String nickname;
 
 	public User(String nickname) {
-		setNickname(nickname);
+		try {
+			setNickname(nickname);
+		} catch (IllegalArgumentException e) {
+			System.out.println(e.getMessage());
+			setNickname("Fulano" + Math.round(Math.random() * 10000));
+		}
 		new Thread(this).start();
+
 	}
 
-	public void connectToServer () {
+	@Override
+	public void run() {
+		connectToServer();
+		sendMessages();
+		receiveMessages();
+	}
+
+	private void connectToServer() {
 		try {
 			client = new Socket("127.0.0.1", 12345);
-			new PrintStream(client.getOutputStream()).println(nickname);
-			new PrintStream(client.getOutputStream()).println(nickname + " entrou no chat!");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-
-	public void setNickname(String nickname) {
-		if (nickname.contains(" ")) {
-			throw new IllegalArgumentException("Nickname não pode conter espaços");
-		}
-		this.nickname = nickname;
 	}
 
 	private void sendMessages() {
@@ -38,14 +42,19 @@ public class User implements Runnable {
 				Scanner input = new Scanner(System.in);
 				PrintStream output = new PrintStream(client.getOutputStream());
 
+				// Envia o nick do usuário para o Servidor registrá-lo
+				output.println(this.nickname); 
+
 				while (input.hasNextLine()) {
-					String message = checkMessage(input.nextLine());
+					String message = checkMessage(input.nextLine().trim());
 					output.println(message);
+					if (message.equals("/sair")) break;
 				}
 
 				output.close();
 				input.close();
 				client.close();
+				System.out.println("Você saiu");
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -53,9 +62,12 @@ public class User implements Runnable {
 	}
 
 	private String checkMessage(String message) {
-		if (String.valueOf(message.charAt(0)).equals("/")) {
-			if (message.startsWith("/nick ")) {
+		if (message.startsWith("/nick ")) {
+			try {
 				setNickname(message.substring(6));
+			} catch (IllegalArgumentException e) {
+				System.out.println(e.getMessage());
+				return "";
 			}
 		}
 		return message;
@@ -76,16 +88,11 @@ public class User implements Runnable {
 			}
 		}).start();
 	}
-	
-	public String getNickname() {
-		return nickname;
-	}
 
-	@Override
-	public void run() {
-		connectToServer();
-		sendMessages();
-		receiveMessages();
+	private void setNickname(String nickname) {
+		if (nickname.contains(" ") || nickname.isEmpty()) {
+			throw new IllegalArgumentException("Nickname inválido");
+		}
+		this.nickname = nickname;
 	}
-
 }
