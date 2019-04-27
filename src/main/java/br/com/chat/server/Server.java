@@ -7,20 +7,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-public class Server implements Runnable {
+public class Server {
 
-	private List<PrintStream> clientsOutput;
+	private List<PrintStream> clientOutputs;
 	private List<Connection> clients;
 	private ServerSocket server;
 
 	public Server() {
-		clientsOutput = new ArrayList<>();
+		clientOutputs = new ArrayList<>();
 		clients = new ArrayList<>();
-		new Thread(this).start();
+		run();
 	}
 
-	@Override
-	public void run() {
+	private void run() {
 		try {
 			server = new ServerSocket(12345);
 			System.out.println("Servidor iniciado na porta " + server.getLocalPort());
@@ -37,7 +36,7 @@ public class Server implements Runnable {
 			Connection connection = new Connection(server.accept());
 
 			clients.add(connection);
-			clientsOutput.add(connection.getOutputClient());
+			clientOutputs.add(connection.getOutputClient());
 			listenToClient(connection);
 		}
 	}
@@ -46,11 +45,10 @@ public class Server implements Runnable {
 		new Thread(() -> {
 			try {
 				Scanner input = new Scanner(client.getClient().getInputStream());
-
-				// captura o nick do usuário
-				client.setNickname(input.nextLine());
-				String newUserMsg = client.getNickname() + " entrou no chat!";
-				shareMessage("Server", newUserMsg);
+				
+				String nickName = input.nextLine();
+				client.setNickname(nickName);
+				notifyUsersThatHasNewUserConnected(nickName, input);
 
 				while (input.hasNextLine()) {
 					String message = input.nextLine();
@@ -66,6 +64,11 @@ public class Server implements Runnable {
 				e.printStackTrace();
 			}
 		}).start();
+	}
+
+	private void notifyUsersThatHasNewUserConnected(String nickName, Scanner input) {
+		String newUserMsg = nickName + " entrou no chat!";
+		shareMessage("Server", newUserMsg);
 	}
 
 	private String checkMessage(String message, Connection client) {
@@ -117,7 +120,11 @@ public class Server implements Runnable {
 		output.println("Usuários online no chat:  ");
 
 		for (Connection user : clients) {
-			output.println(user.getNickname());
+			if (client.equals(user)) {
+				output.println("*" + user.getNickname());
+			} else {
+				output.println(user.getNickname());
+			}
 		}
 	}
 
@@ -152,7 +159,7 @@ public class Server implements Runnable {
 	private void shareMessage(String nicknameClient, String message) {
 		System.out.println("<" + nicknameClient + "> " + message);
 
-		for (PrintStream client : clientsOutput) {
+		for (PrintStream client : clientOutputs) {
 			client.println("<" + nicknameClient + "> " + message);
 		}
 	}

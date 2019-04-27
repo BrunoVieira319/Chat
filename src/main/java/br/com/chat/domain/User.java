@@ -5,7 +5,7 @@ import java.io.PrintStream;
 import java.net.Socket;
 import java.util.Scanner;
 
-public class User implements Runnable {
+public class User {
 
 	private Socket client;
 	private String nickname;
@@ -17,12 +17,6 @@ public class User implements Runnable {
 			System.out.println(e.getMessage());
 			setNickname("Fulano" + Math.round(Math.random() * 10000));
 		}
-		new Thread(this).start();
-
-	}
-
-	@Override
-	public void run() {
 		connectToServer();
 		sendMessages();
 		receiveMessages();
